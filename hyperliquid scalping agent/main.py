@@ -18,9 +18,8 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 from langchain_openai import ChatOpenAI
-from langchain.agents import create_tool_calling_agent, AgentExecutor
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain.agents import create_agent
 
 from tools import (
     HyperliquidClient,
@@ -43,6 +42,21 @@ load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 SYSTEM_PROMPT = """You are an elite BTC scalping agent on Hyperliquid with 7 advanced strategies at your disposal.
 You analyse the market using every available tool and pick the highest-probability setup.
+
+═══════════════════════════════════════════════════════════════
+FEE AWARENESS — CRITICAL FOR PROFITABILITY
+═══════════════════════════════════════════════════════════════
+Hyperliquid fees:
+  Taker (market orders): 0.035% per side → 0.07% round-trip (entry + exit)
+  Maker (limit orders) : 0.01%  per side → 0.02% round-trip (entry + exit)
+
+EVERY trade must clear the round-trip fee to be profitable:
+  - Market order trade: TP must be > 0.07% to break even. Target TP ≥ 0.15% minimum.
+  - Limit order trade : TP must be > 0.02% to break even. Target TP ≥ 0.10% minimum.
+  - ALWAYS prefer limit orders when spread and conditions allow — they cost 3.5× less in fees.
+  - When the execute_order result returns fee details, verify net profit > 0.
+  - For small accounts, fees consume a larger % of equity. Be extra selective with entries.
+  - Factor fees into EVERY risk/reward calculation: actual R:R = (TP - fees) / (SL + fees).
 
 ═══════════════════════════════════════════════════════════════
 STRATEGY 1 — MOMENTUM SCALP
@@ -122,6 +136,11 @@ CRITICAL RULES
 9. Prefer strategies where multiple signals agree (≥ 3 supporting indicators).
 10. If trailing stop says should_close=True, close immediately.
 11. Use partial_close (50-70%) at first TP, let remainder run with trailing stop.
+12. FEES: Every TP target MUST clear the round-trip fee (0.07% for market, 0.02% for limit).
+    Actual R:R = (TP% - round_trip_fee%) / (SL% + round_trip_fee%). If R:R < 1.5, skip the trade.
+13. PREFER limit orders over market orders when spread is tight — saves 3.5× in fees.
+14. After execute_order, check the "fees" field in the response. If net profit after fees is
+    negative or marginal, tighten your entry criteria.
 
 ═══════════════════════════════════════════════════════════════
 7-STEP REASONING PROCESS
@@ -132,8 +151,11 @@ STEP 3 — SIGNAL DETECTION: Score each signal type. Calculate combined signal s
 STEP 4 — STRATEGY SELECTION: Pick the best strategy. Explain why, list supporting & conflicting signals.
 STEP 5 — RISK SIZING: Calculate position size from ATR. Dynamic SL = 1-1.5× ATR, TP = 1.5-2.5× ATR.
            Adjust leverage inversely to volatility.  Plan partial TP levels.
+           Calculate fee-adjusted R:R: (TP - 0.07%) / (SL + 0.07%) for market orders.
+           If fee-adjusted R:R < 1.5, DO NOT take the trade.
 STEP 6 — EXECUTION: Call risk_check, then execute_order if passed.  Use limit order if spread allows.
-STEP 7 — POST-TRADE REVIEW: Summarize what was done and why.  Note trailing stop status.
+           After execution, verify the fee summary shows net profit > 0.
+STEP 7 — POST-TRADE REVIEW: Summarize what was done and why.  Include fee impact on P&L.
 
 Return structured reasoning for every step.  Never skip a step.
 """
@@ -144,7 +166,7 @@ class BTCScalpingAgent:
 
     def __init__(
         self,
-        model_name: str = "gpt-4",
+        model_name: str = "gpt-5.2",
         temperature: float = 0.1,
         verbose: bool = True,
     ):
@@ -157,18 +179,10 @@ class BTCScalpingAgent:
 
         self.llm = ChatOpenAI(model=model_name, temperature=temperature)
 
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", SYSTEM_PROMPT),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-
-        self.agent = create_tool_calling_agent(llm=self.llm, tools=self.tools, prompt=self.prompt)
-        self.executor = AgentExecutor(
-            agent=self.agent, tools=self.tools,
-            verbose=verbose, max_iterations=15,
-            handle_parsing_errors=True,
+        self.agent = create_agent(
+            model=self.llm,
+            tools=self.tools,
+            system_prompt=SYSTEM_PROMPT,
         )
 
         self.state = AgentState(session_start=datetime.now())
@@ -209,15 +223,17 @@ Follow ALL 7 steps:
 7. Summarize what you did and why. Mention trailing stop and equity protection status.
 
 If no clear setup exists (signal score between -30 and +30), say "NO TRADE" and explain why.
+If you call execute_order, ALWAYS report the exact exchange response including any errors.
+If the order fails (e.g. insufficient margin), say "ORDER FAILED" and include the error.
 
 Timestamp: {datetime.now().isoformat()}
 """
         try:
-            result = self.executor.invoke({
-                "input": prompt,
-                "chat_history": self.chat_history[-10:],
-            })
-            output = result.get("output", "")
+            messages = self.chat_history[-10:] + [HumanMessage(content=prompt)]
+            result = self.agent.invoke({"messages": messages})
+            output_messages = result.get("messages", [])
+            output = output_messages[-1].content if output_messages else ""
+
             self.chat_history.append(HumanMessage(content=prompt))
             self.chat_history.append(AIMessage(content=output))
             if len(self.chat_history) > 30:
@@ -250,15 +266,16 @@ Follow these steps:
 Be decisive. Cut losses fast. Let winners run with trailing stop."""
 
         try:
-            result = self.executor.invoke({
-                "input": prompt,
-                "chat_history": self.chat_history[-5:],
-            })
-            output = result.get("output", "")
+            messages = self.chat_history[-5:] + [HumanMessage(content=prompt)]
+            result = self.agent.invoke({"messages": messages})
+            output_messages = result.get("messages", [])
+            output = output_messages[-1].content if output_messages else ""
 
-            if any(kw in output.lower() for kw in ["close", "stopped", "partial_close"]):
+            if any(kw in output.lower() for kw in ['"filled"', '"totalsz"', "order #"]):
                 self.state.total_trades += 1
-                self.log("Position closed/adjusted", "TRADE")
+                self.log("Position closed/adjusted — FILLED on exchange", "TRADE")
+            elif any(kw in output.lower() for kw in ["close", "stopped", "partial_close"]):
+                self.log("Close signal detected (check exchange for fill confirmation)", "INFO")
 
             return {"has_position": True, "output": output, "timestamp": datetime.now().isoformat()}
         except Exception as e:
@@ -274,6 +291,14 @@ Be decisive. Cut losses fast. Let winners run with trailing stop."""
             self.log("Managed existing position", "INFO")
             return pos_check
 
+        user_state = self.client.get_user_state()
+        equity = 0
+        if user_state and "marginSummary" in user_state:
+            equity = float(user_state["marginSummary"].get("accountValue", 0))
+        if equity <= 0:
+            self.log("Account equity is $0 — cannot trade. Deposit USDC to your Hyperliquid account.", "WARNING")
+            self.log("Running analysis in read-only mode (no orders will be placed).", "INFO")
+
         analysis = self.analyze_market()
         if analysis.get("success"):
             output = analysis.get("output", "").lower()
@@ -285,9 +310,17 @@ Be decisive. Cut losses fast. Let winners run with trailing stop."""
                     self.log(f"Strategy: {strat}", "STRATEGY")
                     break
 
-            if any(kw in output for kw in ["execute_order", "order filled", "opened"]):
+            actually_filled = any(kw in output for kw in ['"filled"', '"totalSz"', '"avgPx"', "order #"])
+            if actually_filled:
                 self.state.total_trades += 1
-                self.log(f"Trade #{self.state.total_trades} executed", "TRADE")
+                self.log(f"Trade #{self.state.total_trades} FILLED on exchange", "TRADE")
+            elif any(kw in output for kw in ["execute_order", "order placed"]):
+                if equity > 0:
+                    self.log("Order sent (check position for fill status)", "INFO")
+                else:
+                    self.log("Order attempted but account has no equity — order will fail", "WARNING")
+            elif "no trade" in output or "no_action" in output:
+                self.log("No trade signal — waiting", "INFO")
         else:
             self.log(f"Analysis failed: {analysis.get('error')}", "ERROR")
 
@@ -302,10 +335,26 @@ Be decisive. Cut losses fast. Let winners run with trailing stop."""
         self.log(f"Max position: ${self.config.max_position_size_usd}", "INFO")
         self.log(f"Leverage: {self.config.default_leverage}x", "INFO")
         self.log(f"TP: {self.config.take_profit_pct*100}%  SL: {self.config.stop_loss_pct*100}%", "INFO")
+        self.log(f"Fees: taker {self.config.taker_fee_rate*100:.3f}%/side, "
+                 f"maker {self.config.maker_fee_rate*100:.3f}%/side, "
+                 f"RT taker {self.config.round_trip_taker_fee*100:.3f}%", "INFO")
         self.log(f"Trailing: activate {self.config.trailing_stop_activation_pct*100}%, "
                  f"distance {self.config.trailing_stop_distance_pct*100}%", "INFO")
         self.log(f"Max daily drawdown: {self.config.max_daily_drawdown_pct*100}%", "INFO")
         self.log(f"Strategies: Momentum | MeanRev | Squeeze | OrderFlow | MTF | FundingFade | LiqSweep", "INFO")
+
+        status = self.get_status()
+        equity = status.get("account_equity", 0)
+        if equity > 0:
+            import math
+            mid = self.client.get_mid_price("BTC") or 80000
+            min_notional = 0.001 * mid
+            needed_lev = max(self.config.default_leverage, math.ceil(min_notional / equity))
+            needed_lev = min(needed_lev, 50)
+            if needed_lev > self.config.default_leverage:
+                self.log(f"Small account: auto-adjusting leverage to {needed_lev}x for min order size", "WARN")
+            lev_result = self.client.set_leverage("BTC", needed_lev, True)
+            self.log(f"Leverage set to {needed_lev}x (cross): {lev_result.get('status', 'unknown')}", "INFO")
 
         self.client.subscribe_to_market_data("BTC")
 
@@ -360,12 +409,15 @@ Be decisive. Cut losses fast. Let winners run with trailing stop."""
         position = self.client.get_position("BTC")
         user_state = self.client.get_user_state()
         equity = 0
-        if user_state and "marginSummary" in user_state:
-            equity = float(user_state["marginSummary"].get("accountValue", 0))
+        account_mode = "unknown"
+        if user_state:
+            equity = float(user_state.get("effective_equity", 0))
+            account_mode = user_state.get("account_mode", "unknown")
 
         return {
             "is_running": self.state.is_running,
             "network": self.config.network,
+            "account_mode": account_mode,
             "account_equity": equity,
             "current_position": position,
             "active_strategy": self.state.active_strategy,
@@ -401,12 +453,19 @@ def main():
     if not os.getenv("HYPERLIQUID_PRIVATE_KEY"):
         print("Warning: HYPERLIQUID_PRIVATE_KEY not set — read-only mode (no trading)")
 
-    agent = BTCScalpingAgent(model_name="gpt-4", temperature=0.1, verbose=True)
+    agent = BTCScalpingAgent(model_name="gpt-5.2", temperature=0.1, verbose=True)
 
     status = agent.get_status()
-    print(f"  Network  : {status['network']}")
-    print(f"  Equity   : ${status['account_equity']:.2f}")
-    print(f"  Position : {status['current_position'] or 'None'}")
+    print(f"  Network      : {status['network']}")
+    print(f"  Account Mode : {status.get('account_mode', 'unknown')}")
+    print(f"  Equity       : ${status['account_equity']:.2f}")
+    if status.get('account_mode') == 'unified':
+        print(f"    (Spot USDC used as perps margin in unified mode)")
+    print(f"  Position     : {status['current_position'] or 'None'}")
+
+    if status['account_equity'] == 0:
+        print(f"\n  WARNING: No funds available. Deposit USDC to your Hyperliquid account.")
+
     print(f"\n  Press Ctrl+C to stop\n")
 
     agent.run_continuous(interval_seconds=30, max_cycles=None)

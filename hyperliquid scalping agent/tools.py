@@ -64,6 +64,11 @@ class HyperliquidConfig:
         self.trailing_stop_activation_pct = float(os.getenv("TRAILING_STOP_ACTIVATION_PCT", "0.003"))
         self.trailing_stop_distance_pct = float(os.getenv("TRAILING_STOP_DISTANCE_PCT", "0.002"))
 
+        self.taker_fee_rate = float(os.getenv("TAKER_FEE_RATE", "0.00035"))
+        self.maker_fee_rate = float(os.getenv("MAKER_FEE_RATE", "0.0001"))
+        self.round_trip_taker_fee = self.taker_fee_rate * 2
+        self.round_trip_maker_fee = self.maker_fee_rate * 2
+
 
 # ---------------------------------------------------------------------------
 # Hyperliquid client
@@ -75,6 +80,7 @@ class HyperliquidClient:
     def __init__(self, config: Optional[HyperliquidConfig] = None):
         self.config = config or HyperliquidConfig()
         self._info: Optional[Any] = None
+        self._info_ws: Optional[Any] = None
         self._exchange: Optional[Any] = None
         self._ws_callbacks: Dict[str, Callable] = {}
         self._latest_data: Dict[str, Any] = {
@@ -88,17 +94,27 @@ class HyperliquidClient:
 
     @property
     def info(self) -> Any:
+        """REST-only Info client (no websocket blocking)."""
         if self._info is None and HYPERLIQUID_AVAILABLE:
-            self._info = Info(self.config.api_url, skip_ws=False)
+            self._info = Info(self.config.api_url, skip_ws=True)
         return self._info
+
+    @property
+    def info_ws(self) -> Any:
+        """WebSocket-enabled Info client for subscriptions."""
+        if self._info_ws is None and HYPERLIQUID_AVAILABLE:
+            self._info_ws = Info(self.config.api_url, skip_ws=False)
+        return self._info_ws
 
     @property
     def exchange(self) -> Any:
         if self._exchange is None and HYPERLIQUID_AVAILABLE:
             if not self.config.private_key:
                 raise ValueError("Private key required for exchange operations")
+            from eth_account import Account
+            wallet = Account.from_key(self.config.private_key)
             self._exchange = Exchange(
-                self.config.private_key,
+                wallet,
                 self.config.api_url,
                 account_address=self.config.account_address,
             )
@@ -107,7 +123,7 @@ class HyperliquidClient:
     # -- WebSocket subscriptions --
 
     def subscribe_to_market_data(self, coin: str = "BTC"):
-        if not HYPERLIQUID_AVAILABLE or self.info is None:
+        if not HYPERLIQUID_AVAILABLE or self.info_ws is None:
             return
 
         def on_all_mids(data):
@@ -127,15 +143,15 @@ class HyperliquidClient:
                 self._latest_data["candles"].append(data["data"])
                 self._latest_data["candles"] = self._latest_data["candles"][-500:]
 
-        self.info.subscribe({"type": "allMids"}, on_all_mids)
-        self.info.subscribe({"type": "l2Book", "coin": coin}, on_l2_book)
-        self.info.subscribe({"type": "trades", "coin": coin}, on_trades)
-        self.info.subscribe({"type": "candle", "coin": coin, "interval": "1m"}, on_candle)
+        self.info_ws.subscribe({"type": "allMids"}, on_all_mids)
+        self.info_ws.subscribe({"type": "l2Book", "coin": coin}, on_l2_book)
+        self.info_ws.subscribe({"type": "trades", "coin": coin}, on_trades)
+        self.info_ws.subscribe({"type": "candle", "coin": coin, "interval": "1m"}, on_candle)
 
         if self.config.account_address:
             def on_user_events(data):
                 self._latest_data["user_state"] = data
-            self.info.subscribe({"type": "userEvents", "user": self.config.account_address}, on_user_events)
+            self.info_ws.subscribe({"type": "userEvents", "user": self.config.account_address}, on_user_events)
 
     # -- Data fetchers --
 
@@ -177,20 +193,124 @@ class HyperliquidClient:
                 print(f"Error fetching candles: {e}")
         return self._latest_data["candles"][-limit:] if self._latest_data["candles"] else []
 
-    def get_user_state(self) -> Optional[Dict]:
+    def get_spot_clearinghouse_state(self) -> Optional[Dict]:
+        """Fetch spot clearinghouse state.
+        In unified account mode this is the single source of truth for
+        all balances and holds (perps user_state is empty)."""
         if not self.config.account_address:
             return None
-        if HYPERLIQUID_AVAILABLE and self.info:
-            try:
-                return self.info.user_state(self.config.account_address)
-            except Exception as e:
-                print(f"Error fetching user state: {e}")
+        try:
+            import requests as _req
+            resp = _req.post(
+                f"{self.config.api_url}/info",
+                json={"type": "spotClearinghouseState", "user": self.config.account_address},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                return resp.json()
+        except Exception as e:
+            print(f"Error fetching spot clearinghouse state: {e}")
+        return None
+
+    def get_perp_clearinghouse_states(self) -> List[Dict]:
+        """Fetch per-DEX perp clearinghouse states for unified accounts."""
+        if not self.config.account_address:
+            return []
+        try:
+            import requests as _req
+            resp = _req.post(
+                f"{self.config.api_url}/info",
+                json={"type": "perpClearinghouseState", "user": self.config.account_address},
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list):
+                    return data
+                return [data] if data else []
+        except Exception:
+            pass
+        return []
+
+    def get_user_state(self) -> Optional[Dict]:
+        """Get complete account state, supporting both unified and standard modes.
+
+        Unified account mode: balances live in spotClearinghouseState,
+        positions live in per-DEX perp states.
+        Standard mode: everything is in info.user_state().
+        """
+        if not self.config.account_address:
+            return None
+
+        if not HYPERLIQUID_AVAILABLE or not self.info:
+            return self._latest_data["user_state"]
+
+        try:
+            perps_state = self.info.user_state(self.config.account_address)
+            perps_equity = float(perps_state.get("marginSummary", {}).get("accountValue", 0)) if perps_state else 0
+
+            spot_state = self.get_spot_clearinghouse_state()
+            spot_usdc = 0
+            spot_balances = {}
+            if spot_state:
+                for b in spot_state.get("balances", []):
+                    total = float(b.get("total", 0))
+                    if total > 0:
+                        coin_name = b["coin"].lower()
+                        spot_balances[coin_name] = total
+                        if coin_name == "usdc":
+                            spot_usdc = total
+
+            is_unified = perps_equity == 0 and spot_usdc > 0
+            effective_equity = spot_usdc if is_unified else perps_equity
+            total_available = perps_equity + spot_usdc
+
+            state = perps_state or {}
+            state["spot_balance_usdc"] = spot_usdc
+            state["spot_balances"] = spot_balances
+            state["perps_equity"] = perps_equity
+            state["effective_equity"] = effective_equity
+            state["total_available_usd"] = total_available
+            state["account_mode"] = "unified" if is_unified else "standard"
+
+            if is_unified:
+                state["marginSummary"] = {
+                    "accountValue": str(effective_equity),
+                    "totalNtlPos": state.get("marginSummary", {}).get("totalNtlPos", "0.0"),
+                    "totalRawUsd": str(spot_usdc),
+                    "totalMarginUsed": state.get("marginSummary", {}).get("totalMarginUsed", "0.0"),
+                }
+
+            return state
+        except Exception as e:
+            print(f"Error fetching user state: {e}")
         return self._latest_data["user_state"]
 
     def get_position(self, coin: str = "BTC") -> Optional[Dict]:
+        """Get current position — checks both standard perps state and
+        unified account perp DEX states."""
         user_state = self.get_user_state()
-        if user_state and "assetPositions" in user_state:
+        if not user_state:
+            return None
+
+        if user_state.get("assetPositions"):
             for pos in user_state["assetPositions"]:
+                if pos.get("position", {}).get("coin") == coin:
+                    position = pos["position"]
+                    szi = float(position.get("szi", 0))
+                    if szi != 0:
+                        return {
+                            "coin": coin,
+                            "size": abs(szi),
+                            "side": "long" if szi > 0 else "short",
+                            "entry_price": float(position.get("entryPx", 0)),
+                            "unrealized_pnl": float(position.get("unrealizedPnl", 0)),
+                            "leverage": int(position.get("leverage", {}).get("value", 1)),
+                        }
+
+        for dex_state in self.get_perp_clearinghouse_states():
+            cs = dex_state if "assetPositions" in dex_state else dex_state.get("clearinghouseState", {})
+            for pos in cs.get("assetPositions", []):
                 if pos.get("position", {}).get("coin") == coin:
                     position = pos["position"]
                     szi = float(position.get("szi", 0))
@@ -1383,27 +1503,96 @@ IMPORTANT: Only use after confirming signals with get_market_data and multi_time
                 result = self.client.place_market_order(coin, is_buy, partial_size, slippage)
                 return json.dumps({"action": "partial_close", "size_closed": partial_size, "result": result}, indent=2, default=str)
 
+            mid_price = self.client.get_mid_price(coin) or 80000
+            MIN_BTC_SIZE = 0.001
+
+            is_limit = order_type == "limit" and limit_price
+            fee_rate = self.client.config.maker_fee_rate if is_limit else self.client.config.taker_fee_rate
+            round_trip_fee_rate = fee_rate * 2
+
             if size <= 0:
                 user_state = self.client.get_user_state()
                 if user_state and "marginSummary" in user_state:
                     equity = float(user_state["marginSummary"].get("accountValue", 0))
-                    mid_price = self.client.get_mid_price(coin) or 80000
+                    if equity <= 0:
+                        return json.dumps({"error": "No equity available to trade. Deposit funds first."})
+
                     risk_amount = equity * self.client.config.risk_per_trade
                     size = round((risk_amount * self.client.config.default_leverage) / mid_price, 5)
+
+                    if size < MIN_BTC_SIZE:
+                        min_notional = MIN_BTC_SIZE * mid_price
+                        needed_leverage = math.ceil(min_notional / equity)
+                        max_leverage = min(needed_leverage, 50)
+
+                        if max_leverage > self.client.config.default_leverage:
+                            self.client.set_leverage(coin, max_leverage, True)
+
+                        size = MIN_BTC_SIZE
                 else:
                     return json.dumps({"error": "Cannot calculate size: no account data"})
 
+            if size < MIN_BTC_SIZE:
+                size = MIN_BTC_SIZE
+
+            notional = size * mid_price
+            entry_fee = notional * fee_rate
+            exit_fee = notional * fee_rate
+            total_fees = entry_fee + exit_fee
+
+            user_state = user_state if 'user_state' in dir() else self.client.get_user_state()
+            equity = float((user_state or {}).get("marginSummary", {}).get("accountValue", 0))
+            current_leverage = self.client.config.default_leverage
+            margin_needed = notional / current_leverage
+            total_cost = margin_needed + total_fees
+
+            if equity > 0 and total_cost > equity:
+                headroom = equity - total_fees
+                if headroom <= 0:
+                    return json.dumps({
+                        "error": f"Fees alone (${total_fees:.4f}) exceed equity (${equity:.2f}). "
+                                 f"Deposit more USDC."
+                    })
+                max_margin = headroom
+                needed_lev = math.ceil(notional / max_margin)
+                needed_lev = min(needed_lev, 50)
+                new_margin = notional / needed_lev
+                if new_margin + total_fees > equity:
+                    return json.dumps({
+                        "error": f"Insufficient equity after fees. "
+                                 f"Need ${new_margin + total_fees:.2f} (margin ${new_margin:.2f} + fees ${total_fees:.4f}) "
+                                 f"but have ${equity:.2f}."
+                    })
+                self.client.set_leverage(coin, needed_lev, True)
+                current_leverage = needed_lev
+
             is_buy = action == "open_long"
 
-            if order_type == "limit" and limit_price:
+            if is_limit:
                 result = self.client.place_limit_order(coin, is_buy, size, limit_price)
             else:
                 result = self.client.place_market_order(coin, is_buy, size, slippage)
 
-            mid_price = self.client.get_mid_price(coin) or 80000
             self.trailing_manager.init_trade(mid_price, "long" if is_buy else "short")
 
-            return json.dumps({"action": action, "size": size, "order_type": order_type, "result": result}, indent=2, default=str)
+            min_profit_to_break_even = total_fees
+            min_move_pct = round_trip_fee_rate * 100
+
+            return json.dumps({
+                "action": action, "size": size, "order_type": order_type,
+                "leverage": current_leverage,
+                "notional": round(notional, 2),
+                "fees": {
+                    "entry_fee": round(entry_fee, 6),
+                    "exit_fee": round(exit_fee, 6),
+                    "total_round_trip": round(total_fees, 6),
+                    "fee_rate": f"{fee_rate*100:.3f}%",
+                    "round_trip_rate": f"{round_trip_fee_rate*100:.3f}%",
+                    "min_profit_to_break_even": round(min_profit_to_break_even, 6),
+                    "min_price_move_pct": f"{min_move_pct:.3f}%",
+                },
+                "result": result
+            }, indent=2, default=str)
         except Exception as e:
             return json.dumps({"error": str(e)})
 
@@ -1462,6 +1651,13 @@ Returns pass/fail for each check and an overall can_execute flag."""
 
             mid_price = self.client.get_mid_price("BTC") or 80000
             position_value = proposed_size * mid_price
+
+            taker_fee = self.client.config.taker_fee_rate
+            round_trip_fee = self.client.config.round_trip_taker_fee
+            entry_fee_usd = position_value * taker_fee
+            exit_fee_usd = position_value * taker_fee
+            total_fees_usd = entry_fee_usd + exit_fee_usd
+
             if position_value > self.client.config.max_position_size_usd:
                 checks.append(f"FAIL: Position ${position_value:.0f} > max ${self.client.config.max_position_size_usd:.0f}")
                 all_passed = False
@@ -1472,13 +1668,21 @@ Returns pass/fail for each check and an overall can_execute flag."""
             if user_state:
                 account_value = float(user_state.get("marginSummary", {}).get("accountValue", 0))
                 if account_value > 0:
-                    risk_pct = (position_value / self.client.config.default_leverage) / account_value
-                    max_risk = self.client.config.risk_per_trade * 5
+                    sl_pct = self.client.config.stop_loss_pct
+                    max_loss_usd = position_value * (sl_pct + round_trip_fee)
+                    risk_pct = max_loss_usd / account_value
+                    max_risk = self.client.config.risk_per_trade * 10
                     if risk_pct > max_risk:
-                        checks.append(f"FAIL: Risk {risk_pct*100:.2f}% > max {max_risk*100:.2f}%")
+                        checks.append(
+                            f"FAIL: Max loss ${max_loss_usd:.2f} ({risk_pct*100:.1f}% of equity) "
+                            f"> limit {max_risk*100:.0f}%. SL={sl_pct*100}% + fees={round_trip_fee*100:.3f}%"
+                        )
                         all_passed = False
                     else:
-                        checks.append(f"PASS: Risk {risk_pct*100:.2f}%")
+                        checks.append(
+                            f"PASS: Max loss ${max_loss_usd:.2f} ({risk_pct*100:.1f}% of equity). "
+                            f"SL={sl_pct*100}% + fees={round_trip_fee*100:.3f}%"
+                        )
 
                     eq_check = self.equity_protector.should_trade(account_value)
                     if not eq_check["can_trade"]:
@@ -1516,10 +1720,70 @@ Returns pass/fail for each check and an overall can_execute flag."""
                      (proposed_action == "open_short" and existing["side"] == "short"):
                     checks.append("WARNING: Will add to existing position")
 
+            tp_pct = self.client.config.take_profit_pct
+            expected_profit_usd = position_value * tp_pct
+            net_profit_usd = expected_profit_usd - total_fees_usd
+
+            if net_profit_usd <= 0:
+                checks.append(
+                    f"FAIL: Fees (${total_fees_usd:.4f}, {round_trip_fee*100:.3f}% round-trip) "
+                    f"exceed TP profit (${expected_profit_usd:.4f}, {tp_pct*100:.2f}%). "
+                    f"Trade would be net-negative. Need TP > {round_trip_fee*100:.3f}%."
+                )
+                all_passed = False
+            else:
+                checks.append(
+                    f"PASS: Fee check — fees ${total_fees_usd:.4f} ({round_trip_fee*100:.3f}% RT), "
+                    f"TP profit ${expected_profit_usd:.4f}, net ${net_profit_usd:.4f}"
+                )
+
+            if user_state:
+                account_value = float(user_state.get("marginSummary", {}).get("accountValue", 0))
+                if account_value > 0:
+                    leverage = self.client.config.default_leverage
+                    margin_needed = position_value / leverage
+                    total_cost = margin_needed + total_fees_usd
+
+                    if total_cost > account_value:
+                        headroom = account_value - total_fees_usd
+                        if headroom > 0:
+                            adjusted_lev = min(math.ceil(position_value / headroom), 50)
+                            margin_needed = position_value / adjusted_lev
+                            total_cost = margin_needed + total_fees_usd
+                            leverage = adjusted_lev
+                        else:
+                            checks.append(
+                                f"FAIL: Fees alone (${total_fees_usd:.4f}) exceed equity (${account_value:.2f})"
+                            )
+                            all_passed = False
+
+                    if total_cost > account_value:
+                        checks.append(
+                            f"FAIL: Margin + fees (${total_cost:.2f}) exceed equity (${account_value:.2f}) "
+                            f"even at {leverage}x. Margin: ${margin_needed:.2f}, fees: ${total_fees_usd:.4f}"
+                        )
+                        all_passed = False
+                    else:
+                        remaining = account_value - total_cost
+                        checks.append(
+                            f"PASS: Margin + fees ${total_cost:.2f} within equity at {leverage}x. "
+                            f"Remaining: ${remaining:.2f}"
+                        )
+
             if all_passed:
                 object.__setattr__(self, "trades_this_hour", self.trades_this_hour + 1)
 
-            return json.dumps({"checks": checks, "all_passed": all_passed, "can_execute": all_passed}, indent=2)
+            return json.dumps({
+                "checks": checks, "all_passed": all_passed, "can_execute": all_passed,
+                "fee_summary": {
+                    "taker_fee_rate": f"{taker_fee*100:.3f}%",
+                    "round_trip_fee_rate": f"{round_trip_fee*100:.3f}%",
+                    "entry_fee_usd": round(entry_fee_usd, 6),
+                    "exit_fee_usd": round(exit_fee_usd, 6),
+                    "total_fees_usd": round(total_fees_usd, 6),
+                    "min_tp_to_profit": f"{round_trip_fee*100:.3f}%",
+                }
+            }, indent=2)
         except Exception as e:
             return json.dumps({"checks": [f"ERROR: {str(e)}"], "all_passed": False, "can_execute": False})
 

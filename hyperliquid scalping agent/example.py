@@ -209,7 +209,7 @@ def example_single_analysis():
     print("  SINGLE AI ANALYSIS CYCLE")
     print(f"{'='*60}")
 
-    agent = BTCScalpingAgent(model_name="gpt-4", temperature=0.1, verbose=True)
+    agent = BTCScalpingAgent(model_name="gpt-5.2", temperature=0.1, verbose=True)
     result = agent.run_single_cycle()
 
     if result.get("success"):
@@ -246,7 +246,7 @@ def example_strategy_analysis():
         return
 
     strat = strategies[choice]
-    agent = BTCScalpingAgent(model_name="gpt-4", temperature=0.1, verbose=True)
+    agent = BTCScalpingAgent(model_name="gpt-5.2", temperature=0.1, verbose=True)
 
     prompt = f"""Evaluate BTC specifically for the {strat} strategy.
 
@@ -260,8 +260,11 @@ def example_strategy_analysis():
 
 Do NOT execute if confidence is low or medium — just explain what's missing."""
 
-    result = agent.executor.invoke({"input": prompt, "chat_history": []})
-    print(f"\n  Result:\n{result.get('output', 'No output')}")
+    from langchain_core.messages import HumanMessage as HMsg
+    result = agent.agent.invoke({"messages": [HMsg(content=prompt)]})
+    output_msgs = result.get("messages", [])
+    output = output_msgs[-1].content if output_msgs else "No output"
+    print(f"\n  Result:\n{output}")
 
 
 def example_continuous():
@@ -270,7 +273,7 @@ def example_continuous():
     print("  CONTINUOUS MODE (5 cycles)")
     print(f"{'='*60}")
 
-    agent = BTCScalpingAgent(model_name="gpt-4", temperature=0.1, verbose=True)
+    agent = BTCScalpingAgent(model_name="gpt-5.2", temperature=0.1, verbose=True)
     agent.run_continuous(interval_seconds=60, max_cycles=5)
 
 
