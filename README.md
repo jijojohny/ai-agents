@@ -26,3 +26,6 @@ Runs an intensive, multi-agent smart contract audit (Security, Logic, Gas, Compl
 ## Frontend Developer Agent
 Implements frontend changes from natural language by reading/writing/listing files in your workspace and generating practical UI code updates.
 
+## Voice Creation Agent
+Generates speech audio from text with support for different person personas (voice profiles), including default and custom voices.
+
