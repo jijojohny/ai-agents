@@ -262,7 +262,6 @@ MIT
 
 ## References
 
-- Based on [Warden Protocol Portfolio Agent](https://github.com/warden-protocol/community-agents/tree/main/agents/portfolio-agent)
 - Uses LangChain for agent orchestration
 - Implements Schema-Guided Reasoning (SGR) pattern
 - Multi-chain cryptocurrency portfolio analysis
