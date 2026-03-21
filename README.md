@@ -29,3 +29,6 @@ Implements frontend changes from natural language by reading/writing/listing fil
 ## Voice Creation Agent
 Generates speech audio from text with support for different person personas (voice profiles), including default and custom voices.
 
+## Web Scraping Agent
+Fetches and analyzes web pages via LangChain tools, with **multiple LLM backends** (OpenAI, Anthropic/Claude, Google Gemini, Vertex AI)—not locked to a single vendor.
+
