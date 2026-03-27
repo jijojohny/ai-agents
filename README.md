@@ -38,6 +38,9 @@ A general-purpose conversational assistant with the same **multi-provider LLM** 
 ## Customer Support Agent
 Drafts empathetic, action-oriented customer support replies, classifies issues for routing (billing, shipping, account, product quality), and can generate a structured refund-intake checklist.
 
+## Meeting Notes Agent
+Turns raw meeting notes into concise summaries with decisions, action items, and risk highlights to make follow-through easier.
+
 ## Move Contract Validator Agent
 Validates **Move** modules (Aptos / Sui aware) using **four specialist agents**—security, logic, gas/storage, and standards/compliance—and merges their findings into a single structured report with overall risk and recommendations.
 
