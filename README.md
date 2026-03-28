@@ -14,6 +14,9 @@ Scalps BTC perpetuals on Hyperliquid with openai-based decisioning, using multip
 ## LinkedIn Activity Agent
 Helps professionals grow their LinkedIn presence by generating posts, comments, and content strategy ideas using schema-guided reasoning.
 
+## Twitter / X Viral Post Agent
+Drafts high-retention **X (Twitter)** posts with strong hooks, alternates, optional thread outlines, and posting tips—plus tools for **280-character** checks and viral **format** patterns (multi-provider LLM).
+
 ## QA Tester Agent
 Assists with test planning, test-case design, and automation guidance for web apps and APIs, focusing on risks and edge cases.
 
