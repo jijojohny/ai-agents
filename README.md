@@ -20,6 +20,9 @@ Drafts high-retention **X (Twitter)** posts with strong hooks, alternates, optio
 ## QA Tester Agent
 Assists with test planning, test-case design, and automation guidance for web apps and APIs, focusing on risks and edge cases.
 
+## Bug Report Agent
+Turns informal bug descriptions into structured reports (title, repro steps, expected vs actual, environment, severity hints, labels) with optional JSON output—aligned with how engineering teams triage issues.
+
 ## Wallet Poisoning Agent
 Educates users about Web3 wallet/address poisoning scams and helps verify destination addresses to reduce the risk of sending funds to lookalikes.
 
