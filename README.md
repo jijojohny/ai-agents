@@ -66,6 +66,15 @@ Turns rough notes into structured technical writing (README, API docs, runbooks,
 ## Interview Prep Agent
 Helps candidates practice behavioral (STAR), technical, and high-level design interview prompts with sample talking points, drills, and delivery tips—without inventing the user’s experience.
 
+## Sales Outreach Agent
+Drafts concise outbound **email** and **LinkedIn-style** messages with hooks, CTA, follow-up ideas, and “verify before send” prompts—plus light funnel-stage and length tools (multi-provider LLM).
+
+## Travel Planner Agent
+Produces **day-by-day trip outlines** from dates, pace, budget band, and interests; includes constraint and jet-lag reminders. Does not book or verify live hours, prices, or visas (users confirm with official sources).
+
+## Study Coach Agent
+Converts notes or topics into **flashcards**, **practice questions**, and study scheduling hints using active-recall / time-box tools (multi-provider LLM).
+
 ## Move Contract Validator Agent
 Validates **Move** modules (Aptos / Sui aware) using **four specialist agents**—security, logic, gas/storage, and standards/compliance—and merges their findings into a single structured report with overall risk and recommendations.
 
