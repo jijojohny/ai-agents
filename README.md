@@ -2,6 +2,16 @@
 
 This repository contains multiple AI-powered agents, each focused on a specific task or domain.
 
+## Advanced multi-phase agents
+
+These agents run **sequential specialist LLM phases** (with context passed forward) and end in a **structured JSON** synthesis step when the model complies.
+
+### Adversarial Review Agent (Advanced)
+**Analyst → Red Team → Blue Team → Chair:** neutral decomposition, stress test, mitigations, and a consolidated `AdversarialReviewReport`. Optional **chat** mode exposes rubric tools. See `adversarial review agent/README.md` (`python main.py --deep`).
+
+### Incident Response Agent (Advanced)
+**Triage → Technical → Comms → Synthesis:** stabilization-oriented steps, engineering actions, internal/external drafts, and a consolidated `IncidentResponseReport`. Optional **chat** mode for playbooks. See `incident response agent/README.md` (`python main.py --run`).
+
 ## Research Agent
 Built with LangChain to perform multi-source research and synthesize results into structured summaries with sources.
 
