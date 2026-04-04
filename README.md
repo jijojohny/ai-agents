@@ -30,6 +30,9 @@ Built with LangChain to perform multi-source research and synthesize results int
 ## Portfolio Analysis Agent
 Analyzes cryptocurrency portfolios across EVM and Solana wallets using schema-guided reasoning to produce structured performance and composition reports.
 
+## Stock Market Data Agent
+Fetches **equity and index** quotes, **OHLCV history**, **fundamentals/profile** (when available), and **headline news** via **yfinance** (Yahoo Finance), then analyzes with a **multi-provider LLM**—with explicit **not investment advice** guardrails and tool-grounded numbers only.
+
 ## Hyperliquid BTC Scalping Agent
 Scalps BTC perpetuals on Hyperliquid with openai-based decisioning, using multiple strategies, technical indicators, and built-in risk management.
 
