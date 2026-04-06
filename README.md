@@ -90,6 +90,18 @@ Produces **day-by-day trip outlines** from dates, pace, budget band, and interes
 ## Study Coach Agent
 Converts notes or topics into **flashcards**, **practice questions**, and study scheduling hints using active-recall / time-box tools (multi-provider LLM).
 
+## YouTube Script Agent
+Plans **video titles, hooks, outlines, script beats, CTAs**, and short **description** snippets with retention/hook reference tools and optional structured JSON (`YouTubeScriptReply`).
+
+## Newsletter Agent
+Drafts **email newsletter** subject lines, preview text, section structure, and **markdown body** with compliance reminders; optional JSON (`NewsletterReply`).
+
+## SQL Assistant Agent
+Produces **read-only** SQL (`SELECT` / `WITH`) from natural language and schema hints, with **assumptions** and **injection-safety** notes; optional JSON (`SQLAssistantReply`).
+
+## Accessibility Review Agent
+Reviews **described** UIs or flows for **keyboard, perception, and robustness** issues with prioritized recommendations—**informal** prep for WCAG work, not a certified audit; optional JSON (`A11yReviewReply`).
+
 ## Move Contract Validator Agent
 Validates **Move** modules (Aptos / Sui aware) using **four specialist agents**—security, logic, gas/storage, and standards/compliance—and merges their findings into a single structured report with overall risk and recommendations.
 
