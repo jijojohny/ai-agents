@@ -84,6 +84,9 @@ Turns rough notes into structured technical writing (README, API docs, runbooks,
 ## Interview Prep Agent
 Helps candidates practice behavioral (STAR), technical, and high-level design interview prompts with sample talking points, drills, and delivery tips—without inventing the user’s experience.
 
+## Resume Tailoring Agent
+Rewrites and prioritizes **resume bullets** and a **professional summary** against a **job description** with strict **no-fabrication** rules (placeholders for missing metrics), plus JD **keyword** mapping and **gap** prompts; optional JSON (`ResumeTailorReply`).
+
 ## Sales Outreach Agent
 Drafts concise outbound **email** and **LinkedIn-style** messages with hooks, CTA, follow-up ideas, and “verify before send” prompts—plus light funnel-stage and length tools (multi-provider LLM).
 
