@@ -99,6 +99,9 @@ Drafts **email newsletter** subject lines, preview text, section structure, and 
 ## SQL Assistant Agent
 Produces **read-only** SQL (`SELECT` / `WITH`) from natural language and schema hints, with **assumptions** and **injection-safety** notes; optional JSON (`SQLAssistantReply`).
 
+## API Design Agent
+Sketches **REST-style JSON APIs** from requirements: **resources**, **endpoint list**, **auth/security**, **errors & pagination**, **versioning**, and open questions—with **HTTP status** and **idempotency** tools; optional JSON (`ApiDesignReply`).
+
 ## Accessibility Review Agent
 Reviews **described** UIs or flows for **keyboard, perception, and robustness** issues with prioritized recommendations—**informal** prep for WCAG work, not a certified audit; optional JSON (`A11yReviewReply`).
 
