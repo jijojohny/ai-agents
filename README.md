@@ -109,6 +109,15 @@ Plans **video titles, hooks, outlines, script beats, CTAs**, and short **descrip
 ## Newsletter Agent
 Drafts **email newsletter** subject lines, preview text, section structure, and **markdown body** with compliance reminders; optional JSON (`NewsletterReply`).
 
+## Podcast Show Notes Agent
+Builds **episode titles**, **hook**, **chapter lines** (timestamp placeholders), **takeaways**, **resources**, and **markdown show notes** from an outline or transcript snippets; optional JSON (`PodcastNotesReply`). Multi-provider LLM.
+
+## DevOps Pipeline Agent
+Sketches **CI/CD** workflows (GitHub Actions–oriented by default): **triggers**, **jobs**, **secrets/OIDC** hygiene, **caching**, and a **commented YAML skeleton**—optional JSON (`PipelineSketchReply`); validate against vendor docs before use.
+
+## Grant Proposal Agent
+Produces **grant/RFP outlines** (fit, problem, objectives, methods, outcomes, timeline, **budget categories** without invented dollars, risks) with RFP-alignment and budget-ethics tools; optional JSON (`GrantOutlineReply`). **Not** legal or institutional approval—multi-provider LLM.
+
 ## SQL Assistant Agent
 Produces **read-only** SQL (`SELECT` / `WITH`) from natural language and schema hints, with **assumptions** and **injection-safety** notes; optional JSON (`SQLAssistantReply`).
 
