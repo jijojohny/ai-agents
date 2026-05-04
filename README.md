@@ -21,11 +21,18 @@ These add **longer orchestration** (five specialist passes plus a final structur
 | **ADR Pipeline** | Context → Options → Evaluation → Decision narrative → JSON | `adr pipeline agent/` — `python main.py --pipeline` | `ADRReport` |
 | **Threat Modeling** | Scope → Assets → STRIDE → Mitigations → JSON | `threat modeling agent/` — `python main.py --pipeline` | `ThreatModelReport` |
 | **GTM Launch** | ICP → Positioning → Channels → Timeline → JSON | `gtm launch agent/` — `python main.py --pipeline` | `GTMLaunchReport` |
+| **Election Result Analysis** | Intake → Descriptive → Institutional → Media → JSON | `election result analysis agent/` — `python main.py --pipeline` | `ElectionResultAnalysisReport` |
 
 Each folder has a **chat** mode with reference tools and the same multi-provider `llm_factory` pattern as other agents.
 
 ## Research Agent
 Built with LangChain to perform multi-source research and synthesize results into structured summaries with sources.
+
+## Election Prediction Agent
+Supports **election scenario framing** and **polling literacy** (uncertainty, ethics, US Electoral College basics)—**not** a live forecast service: **no invented polls**, no definitive “who will win” claims; users supply or cite data for quantitative discussion. Optional JSON (`ElectionScenarioReply`). See `election prediction agent/README.md`.
+
+## Election Result Analysis Agent (AGI-style multi-phase)
+**Five-phase** post-election workflow: **results intake → descriptive analysis → institutional context → media literacy → structured JSON** (`ElectionResultAnalysisReport`). **“AGI-style”** means multi-specialist orchestration, not literal AGI. Analyzes **user-pasted or cited** tallies only—no live results scraping; not legal advice. See `election result analysis agent/README.md` (`python main.py --pipeline`).
 
 ## Portfolio Analysis Agent
 Analyzes cryptocurrency portfolios across EVM and Solana wallets using schema-guided reasoning to produce structured performance and composition reports.
