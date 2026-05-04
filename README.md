@@ -118,6 +118,15 @@ Sketches **CI/CD** workflows (GitHub Actions–oriented by default): **triggers*
 ## Grant Proposal Agent
 Produces **grant/RFP outlines** (fit, problem, objectives, methods, outcomes, timeline, **budget categories** without invented dollars, risks) with RFP-alignment and budget-ethics tools; optional JSON (`GrantOutlineReply`). **Not** legal or institutional approval—multi-provider LLM.
 
+## Regex & Log Parser Agent
+Suggests **regex / ripgrep** patterns for **log parsing** with explanations, **test lines**, and **ReDoS / engine** caveats; optional JSON (`LogParseReply`). Multi-provider LLM—validate on real data.
+
+## Open Source Issue Triage Agent
+Drafts **maintainer-first replies**, **label ideas**, and a **triage checklist** from pasted issue text, with **security disclosure** guidance; optional JSON (`OSSTriageReply`). Multi-provider LLM.
+
+## Presentation Outline Agent
+Builds **slide deck outlines**: title options, **storyline**, **one-line-per-slide** list, **speaker-note** hints, and **CTA** from topic, length, and audience; optional JSON (`DeckOutlineReply`). Multi-provider LLM.
+
 ## SQL Assistant Agent
 Produces **read-only** SQL (`SELECT` / `WITH`) from natural language and schema hints, with **assumptions** and **injection-safety** notes; optional JSON (`SQLAssistantReply`).
 
