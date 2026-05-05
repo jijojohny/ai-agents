@@ -127,6 +127,15 @@ Drafts **maintainer-first replies**, **label ideas**, and a **triage checklist**
 ## Presentation Outline Agent
 Builds **slide deck outlines**: title options, **storyline**, **one-line-per-slide** list, **speaker-note** hints, and **CTA** from topic, length, and audience; optional JSON (`DeckOutlineReply`). Multi-provider LLM.
 
+## Freelance Scope Agent
+Drafts **deliverables**, **milestones**, **assumptions**, **out-of-scope**, and **high-level payment reminders** from a client brief—**not legal advice**; optional JSON (`FreelanceScopeReply`). Multi-provider LLM.
+
+## Docker Compose Agent
+Sketches **Compose-oriented layouts** (services, networks, volumes, env/secrets notes, caveats) from a described stack; optional JSON (`ComposeSketchReply`). Multi-provider LLM—validate before production.
+
+## Event Planning Agent
+Produces **run-of-show** lines, **timeline phases**, **logistics checklists**, and **risks/contingencies** from event constraints; optional JSON (`EventPlanReply`). Multi-provider LLM—confirm permits and budgets locally.
+
 ## SQL Assistant Agent
 Produces **read-only** SQL (`SELECT` / `WITH`) from natural language and schema hints, with **assumptions** and **injection-safety** notes; optional JSON (`SQLAssistantReply`).
 
