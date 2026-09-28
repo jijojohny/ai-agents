@@ -154,3 +154,6 @@ Drafts **inclusive job descriptions** (title options, responsibilities, must/nic
 ## SEO Content Brief Agent
 Builds **SEO content briefs** (intent, titles, meta, H2 outline, PAA-style questions) **without inventing** search volume or rankings—optional JSON (`SEOContentBriefReply`); multi-provider LLM.
 
+## Database Schema Design Agent
+Sketches **relational schemas** (tables, keys, indexes, constraints, optional DDL) from requirements—optional JSON (`DatabaseSchemaDesignReply`); multi-provider LLM.
+
