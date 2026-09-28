@@ -148,3 +148,6 @@ Reviews **described** UIs or flows for **keyboard, perception, and robustness** 
 ## Move Contract Validator Agent
 Validates **Move** modules (Aptos / Sui aware) using **four specialist agents**—security, logic, gas/storage, and standards/compliance—and merges their findings into a single structured report with overall risk and recommendations.
 
+## Job Description Writer Agent
+Drafts **inclusive job descriptions** (title options, responsibilities, must/nice requirements, open questions) without inventing pay/benefits—optional JSON (`JobDescriptionReply`); multi-provider LLM.
+
