@@ -160,3 +160,6 @@ Sketches **relational schemas** (tables, keys, indexes, constraints, optional DD
 ## Competitor Brief Agent
 Synthesizes **competitive briefs** from user notes (positioning, strengths/weaknesses, differentiation)—**no invented** ARR/share; optional JSON (`CompetitorBriefReply`); multi-provider LLM.
 
+## Release Notes Agent
+Turns **commits/PR bullets** into **customer-facing release notes** (highlights, breaking changes, markdown)—without inventing features; optional JSON (`ReleaseNotesReply`); multi-provider LLM.
+
