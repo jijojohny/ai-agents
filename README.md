@@ -151,3 +151,6 @@ Validates **Move** modules (Aptos / Sui aware) using **four specialist agents**�
 ## Job Description Writer Agent
 Drafts **inclusive job descriptions** (title options, responsibilities, must/nice requirements, open questions) without inventing pay/benefits—optional JSON (`JobDescriptionReply`); multi-provider LLM.
 
+## SEO Content Brief Agent
+Builds **SEO content briefs** (intent, titles, meta, H2 outline, PAA-style questions) **without inventing** search volume or rankings—optional JSON (`SEOContentBriefReply`); multi-provider LLM.
+
