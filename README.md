@@ -157,3 +157,6 @@ Builds **SEO content briefs** (intent, titles, meta, H2 outline, PAA-style quest
 ## Database Schema Design Agent
 Sketches **relational schemas** (tables, keys, indexes, constraints, optional DDL) from requirements—optional JSON (`DatabaseSchemaDesignReply`); multi-provider LLM.
 
+## Competitor Brief Agent
+Synthesizes **competitive briefs** from user notes (positioning, strengths/weaknesses, differentiation)—**no invented** ARR/share; optional JSON (`CompetitorBriefReply`); multi-provider LLM.
+

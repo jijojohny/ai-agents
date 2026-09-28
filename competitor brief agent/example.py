@@ -1,0 +1,14 @@
+import os
+from dotenv import load_dotenv
+from main import CompetitorBriefAgent
+
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+
+if __name__ == "__main__":
+    agent = CompetitorBriefAgent(provider="openai", model_name="gpt-4o-mini")
+    agent.print_result(
+        agent.chat(
+            "B2B CRM for freelancers. Competitors: HubSpot Free, Notion CRM templates. Brief + JSON.",
+            verbose=True,
+        )
+    )
