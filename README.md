@@ -172,3 +172,6 @@ Drafts **Day 1 / Week 1 / Month 1** onboarding outlines with checklists and owne
 ## Error Message UX Agent
 Rewrites raw errors into **clear, safe, actionable** user-facing copy with recovery steps—optional JSON (`ErrorMessageUxReply`); multi-provider LLM.
 
+## RFC Design Doc Agent
+Drafts **engineering RFCs / design docs** (goals/non-goals, proposal, alternatives, risks)—optional JSON (`RfcDesignDocReply`); multi-provider LLM.
+
