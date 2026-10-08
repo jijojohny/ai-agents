@@ -166,3 +166,6 @@ Turns **commits/PR bullets** into **customer-facing release notes** (highlights,
 ## Localization i18n Agent
 Plans **i18n/localization** (locales, message keys, plurals, formatting, glossary)—optional JSON (`LocalizationI18nReply`); multi-provider LLM.
 
+## Onboarding Guide Agent
+Drafts **Day 1 / Week 1 / Month 1** onboarding outlines with checklists and owners—optional JSON (`OnboardingGuideReply`); multi-provider LLM.
+
