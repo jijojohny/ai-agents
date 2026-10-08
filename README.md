@@ -169,3 +169,6 @@ Plans **i18n/localization** (locales, message keys, plurals, formatting, glossar
 ## Onboarding Guide Agent
 Drafts **Day 1 / Week 1 / Month 1** onboarding outlines with checklists and owners—optional JSON (`OnboardingGuideReply`); multi-provider LLM.
 
+## Error Message UX Agent
+Rewrites raw errors into **clear, safe, actionable** user-facing copy with recovery steps—optional JSON (`ErrorMessageUxReply`); multi-provider LLM.
+
