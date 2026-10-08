@@ -175,3 +175,6 @@ Rewrites raw errors into **clear, safe, actionable** user-facing copy with recov
 ## RFC Design Doc Agent
 Drafts **engineering RFCs / design docs** (goals/non-goals, proposal, alternatives, risks)—optional JSON (`RfcDesignDocReply`); multi-provider LLM.
 
+## Dependency Upgrade Agent
+Plans **package upgrades** (order, breaking-change watchlist, tests, rollback)—no invented CVEs; optional JSON (`DependencyUpgradeReply`); multi-provider LLM.
+
