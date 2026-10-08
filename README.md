@@ -163,3 +163,6 @@ Synthesizes **competitive briefs** from user notes (positioning, strengths/weakn
 ## Release Notes Agent
 Turns **commits/PR bullets** into **customer-facing release notes** (highlights, breaking changes, markdown)—without inventing features; optional JSON (`ReleaseNotesReply`); multi-provider LLM.
 
+## Localization i18n Agent
+Plans **i18n/localization** (locales, message keys, plurals, formatting, glossary)—optional JSON (`LocalizationI18nReply`); multi-provider LLM.
+
